@@ -3,14 +3,13 @@ import { AppProvider } from "./AppContext";
 import Layout from "./components/Layout";
 
 import Home from "./pages/Home";
-import Dashboard from "./pages/Dashboard";
 import Skills from "./pages/Skills"; 
 import Habits from "./pages/Habits";
 import Progress from "./pages/Progress";
 import GoalPredictor from "./pages/GoalPredictor";
 
 export default function App() {
-  const [currentPage, setCurrentPage] = useState("home");
+  const [currentPage, setCurrentPage] = useState("skills");
 
   function navigateToPage(page) {
     setCurrentPage(page);
@@ -20,8 +19,6 @@ export default function App() {
 
   if (currentPage === "home") {
     page = <Home navigateToPage={navigateToPage} />;
-  } else if (currentPage === "dashboard") {
-    page = <Dashboard />;
   } else if (currentPage === "skills") {
     page = <Skills />;
   } else if (currentPage === "habits") {

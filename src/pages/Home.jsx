@@ -32,8 +32,8 @@ function Home({ navigateToPage }) {
             Start Tracking
           </button>
 
-          <button onClick={() => navigateToPage("dashboard")} className="btn btn-light">
-            Explore Dashboard
+          <button onClick={() => navigateToPage("progress")} className="btn btn-light">
+            Explore Progress
           </button>
 
         </div>
@@ -88,7 +88,7 @@ function Home({ navigateToPage }) {
 
         <div className="footer-links">
 
-          <button onClick={() => navigateToPage("dashboard")}>Dashboard</button>
+          <button onClick={() => navigateToPage("progress")}>Progress</button>
 
           <button onClick={() => navigateToPage("skills")}>Skills</button>
 

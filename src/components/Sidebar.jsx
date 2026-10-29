@@ -3,7 +3,6 @@ import { Sparkles } from "lucide-react";
 import { useApp } from "../AppContext";
 
 const links = [
-  { id: "dashboard", label: "Dashboard", icon: "🏠" },
   { id: "skills", label: "Skills", icon: "📚" },
   { id: "habits", label: "Habits", icon: "✅" },
   { id: "progress", label: "Progress", icon: "📈" },
