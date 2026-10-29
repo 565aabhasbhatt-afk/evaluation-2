@@ -1,262 +1,46 @@
-import React, {
-  createContext,
-  useContext,
-  useEffect,
-  useState,
-} from "react";
-
+import { createContext, useContext, useEffect, useState } from "react";
 import { initialData } from "./data/data";
-import {
-  loadData,
-  saveData,
-} from "./lib/storage";
+import { loadData, saveData } from "./lib/storage";
 
-import {
-  normalizeData,
-  calculateProgress,
-  getStatus,
-} from "./lib/SkillTracking.js";
+// Create the context for sharing state across components
+const AppContext = createContext(null);
 
+export function AppProvider({ children }) {
+  // Initialize state directly from localStorage (or fallback to initialData)
+  const [data, setData] = useState(loadData);
 
-const AppContext =
-  createContext(null);
-
-
-export function AppProvider({
-  children,
-}) {
-
-  const [data, setData] =
-    useState(
-      normalizeData(initialData)
-    );
-
-  const [loaded, setLoaded] =
-    useState(false);
-
-
-  // Load saved data
+  // Automatically save data to localStorage whenever it changes
   useEffect(() => {
+    saveData(data);
+  }, [data]);
 
-    const savedData =
-      loadData();
-
-    setData(
-      normalizeData(savedData)
-    );
-
-    setLoaded(true);
-
-  }, []);
-
-
-  // Save data automatically
+  // Toggle dark mode class on document body
   useEffect(() => {
-
-    if (loaded) {
-      saveData(data);
-    }
-
-  }, [data, loaded]);
-
-
-  // Dark mode
-  useEffect(() => {
-
-    if (data.profile?.darkMode) {
-
-      document.body.classList.add(
-        "dark"
-      );
-
+    if (data.profile && data.profile.darkMode) {
+      document.body.classList.add("dark");
     } else {
-
-      document.body.classList.remove(
-        "dark"
-      );
-
+      document.body.classList.remove("dark");
     }
+  }, [data.profile]);
 
-  }, [data.profile?.darkMode]);
-
-
-  // Update general data
+  // Helper function to update part of the app data
   function update(changes) {
-
-    setData((oldData) => ({
-      ...oldData,
-      ...changes,
-    }));
-
+    setData({ ...data, ...changes });
   }
 
-
-  // Check / uncheck a task
-  function toggleTask(
-    skillId,
-    taskId
-  ) {
-
-    setData((oldData) => {
-
-      const skills =
-        oldData.skills.map(
-          (skill) => {
-
-            if (
-              skill.id !== skillId
-            ) {
-              return skill;
-            }
-
-
-            const tasks =
-              skill.tasks.map(
-                (task) => {
-
-                  if (
-                    task.id !== taskId
-                  ) {
-                    return task;
-                  }
-
-                  return {
-                    ...task,
-                    completed:
-                      !task.completed,
-                  };
-
-                }
-              );
-
-
-            // Recalculate progress
-            const progress =
-              calculateProgress(
-                tasks
-              );
-
-
-            return {
-              ...skill,
-
-              tasks,
-
-              progress,
-
-              paused: false,
-
-              status: getStatus(
-                progress,
-                false
-              ),
-            };
-
-          }
-        );
-
-
-      return {
-        ...oldData,
-        skills,
-      };
-
-    });
-
+  // Reset data back to default values
+  function resetData() {
+    setData(initialData);
   }
-
-
-  // Pause / resume skill
-  function togglePause(
-    skillId
-  ) {
-
-    setData((oldData) => {
-
-      const skills =
-        oldData.skills.map(
-          (skill) => {
-
-            if (
-              skill.id !== skillId
-            ) {
-              return skill;
-            }
-
-
-            const paused =
-              !skill.paused;
-
-
-            return {
-              ...skill,
-
-              paused,
-
-              status: getStatus(
-                skill.progress,
-                paused
-              ),
-            };
-
-          }
-        );
-
-
-      return {
-        ...oldData,
-        skills,
-      };
-
-    });
-
-  }
-
-
-  // Delete skill
-  function deleteSkill(
-    skillId
-  ) {
-
-    setData((oldData) => ({
-
-      ...oldData,
-
-      skills:
-        oldData.skills.filter(
-          (skill) =>
-            skill.id !== skillId
-        ),
-
-    }));
-
-  }
-
-
-  const value = {
-    data,
-    update,
-    toggleTask,
-    togglePause,
-    deleteSkill,
-  };
-
 
   return (
-    <AppContext.Provider
-      value={value}
-    >
+    <AppContext.Provider value={{ data, setData, update, resetData }}>
       {children}
     </AppContext.Provider>
   );
-
 }
 
-
+// Custom hook so components can easily access the context
 export function useApp() {
-
-  return useContext(
-    AppContext
-  );
-
+  return useContext(AppContext);
 }

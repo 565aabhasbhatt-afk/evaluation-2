@@ -4,11 +4,15 @@ function HabitCard({ habit, onToggle, onDelete }) {
   return (
     <div className={habit.done ? "card habit-card habit-done" : "card habit-card"}>
       <label className="habit-main">
-        <input type="checkbox" checked={habit.done} onChange={() => onToggle(habit.id)} />
+        <input
+          type="checkbox"
+          checked={habit.done}
+          onChange={() => onToggle(habit.id)}
+        />
         <span>
           <span className="habit-name">{habit.name}</span>
           <span className="muted small block">
-            {habit.frequency} · {habit.category} · 🔥 {habit.streak} day streak
+            {habit.frequency} · {habit.category} · 🔥 {habit.streak || 0} day streak
           </span>
         </span>
       </label>

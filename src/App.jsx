@@ -4,43 +4,44 @@ import Layout from "./components/Layout";
 
 import Home from "./pages/Home";
 import Dashboard from "./pages/Dashboard";
-import Skills from "./pages/Skills"; 
+import Skills from "./pages/Skills";
 import Habits from "./pages/Habits";
 import Progress from "./pages/Progress";
-import GoalPredictor from "./pages/GoalPredictor";
 
 export default function App() {
+  // Navigation state to track which page is currently active
   const [currentPage, setCurrentPage] = useState("home");
 
   function navigateToPage(page) {
     setCurrentPage(page);
   }
 
-  let page;
-
-  if (currentPage === "home") {
-    page = <Home navigateToPage={navigateToPage} />;
-  } else if (currentPage === "dashboard") {
-    page = <Dashboard />;
-  } else if (currentPage === "skills") {
-    page = <Skills />;
-  } else if (currentPage === "habits") {
-    page = <Habits />;
-  } else if (currentPage === "progress") {
-    page = <Progress />;
-  } else if (currentPage === "goalPredictor") {
-    page = <GoalPredictor />;
-  } else {
-    page = <Home navigateToPage={navigateToPage} />;
+  // Render the component matching the current page
+  function renderPage() {
+    switch (currentPage) {
+      case "dashboard":
+        return <Dashboard />;
+      case "skills":
+        return <Skills />;
+      case "habits":
+        return <Habits />;
+      case "progress":
+        return <Progress />;
+      case "home":
+      default:
+        return <Home navigateToPage={navigateToPage} />;
+    }
   }
+
+  const activePage = renderPage();
 
   return (
     <AppProvider>
       {currentPage === "home" ? (
-        page
+        activePage
       ) : (
         <Layout currentPage={currentPage} navigateToPage={navigateToPage}>
-          {page}
+          {activePage}
         </Layout>
       )}
     </AppProvider>
