@@ -1,4 +1,5 @@
 import React from "react";
+import { Sparkles } from "lucide-react";
 import { useApp } from "../AppContext";
 
 const links = [
@@ -6,6 +7,11 @@ const links = [
   { id: "skills", label: "Skills", icon: "📚" },
   { id: "habits", label: "Habits", icon: "✅" },
   { id: "progress", label: "Progress", icon: "📈" },
+  {
+    id: "goalPredictor",
+    label: "Goal Predictor",
+    icon: <Sparkles size={16} style={{ display: "inline-block", verticalAlign: "-2px" }} />,
+  },
 ];
 
 function Sidebar({ open, onClose, currentPage, navigateToPage }) {
@@ -22,11 +28,7 @@ function Sidebar({ open, onClose, currentPage, navigateToPage }) {
 
   return (
     <aside className={open ? "sidebar sidebar-open" : "sidebar"}>
-      <button
-        type="button"
-        className="logo"
-        onClick={() => handleNavigate("home")}
-      >
+      <button type="button" className="logo" onClick={() => handleNavigate("home")}>
         <span className="logo-mark">S</span> SkillSphere
       </button>
 
@@ -55,4 +57,3 @@ function Sidebar({ open, onClose, currentPage, navigateToPage }) {
 }
 
 export default Sidebar;
-

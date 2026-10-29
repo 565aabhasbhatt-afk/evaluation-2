@@ -1,310 +1,956 @@
-import React, { useState } from "react";
+import React, {
+  useMemo,
+  useState,
+} from "react";
+
+import {
+  Plus,
+  Target,
+  BookOpen,
+  CheckCircle,
+  TrendingUp,
+} from "lucide-react";
+
+import { useApp } from "../AppContext";
+
 import SkillCard from "../components/SkillCard";
 
-function Skills() {
-  // Toggle form visibility
-  const [showForm, setShowForm] = useState(false);
+import {
+  createTasks,
+  normalizeSkill,
+} from "../lib/SkillTracking.js";
 
-  // Form input states
-  const [skillName, setSkillName] = useState("");
-  const [category, setCategory] = useState("");
-  const [difficulty, setDifficulty] = useState("Beginner");
-  const [progress, setProgress] = useState(0);
-  const [targetDate, setTargetDate] = useState("");
-  const [description, setDescription] = useState("");
-  const [status, setStatus] = useState("Learning");
+import CourseRecommendations
+  from "../components/CourseRecommendations";
 
-  // Track if we are editing an existing skill (ID or null)
-  const [editId, setEditId] = useState(null);
 
-  // Filter and sort state
-  const [filter, setFilter] = useState("All");
-  const [sortBy, setSortBy] = useState("Progress");
+export default function Skills() {
 
-  // Initial skills list
-  const [skills, setSkills] = useState([
-    {
-      id: 1,
-      name: "Python",
-      category: "Programming",
-      difficulty: "Beginner",
-      progress: 80,
-      targetDate: "2026-09-01",
-      description: "Learning Python programming",
-      status: "Learning",
-    },
-    {
-      id: 2,
-      name: "Machine Learning",
-      category: "AI",
-      difficulty: "Intermediate",
-      progress: 65,
-      targetDate: "2026-10-01",
-      description: "Learning machine learning concepts",
-      status: "Learning",
-    },
-    {
-      id: 3,
-      name: "SQL",
-      category: "Database",
-      difficulty: "Beginner",
-      progress: 50,
-      targetDate: "2026-09-15",
-      description: "Learning SQL and databases",
-      status: "Learning",
-    },
-    {
-      id: 4,
-      name: "React",
-      category: "Web Development",
-      difficulty: "Beginner",
-      progress: 40,
-      targetDate: "2026-10-15",
-      description: "Learning React basics",
-      status: "Paused",
-    },
-  ]);
+  const {
+    data,
+    update,
+    toggleTask,
+    togglePause,
+    deleteSkill,
+  } = useApp();
 
-  // Clear form fields and close form
-  function clearForm() {
-    setSkillName("");
-    setCategory("");
-    setDifficulty("Beginner");
-    setProgress(0);
-    setTargetDate("");
-    setDescription("");
-    setStatus("Learning");
-    setEditId(null);
-    setShowForm(false);
-  }
 
-  // Handle Add or Edit submission
-  function submit(event) {
-    event.preventDefault();
+  const [showForm, setShowForm] =
+    useState(false);
 
-    if (editId === null) {
-      // Add new skill with unique ID
-      const newSkill = {
-        id: Date.now(),
-        name: skillName,
-        category,
-        difficulty,
-        progress: Number(progress),
-        targetDate,
-        description,
-        status,
+  const [editId, setEditId] =
+    useState(null);
+
+  const [filter, setFilter] =
+    useState("All");
+
+  const [sortBy, setSortBy] =
+    useState("Progress");
+
+
+  const emptyForm = {
+    name: "",
+    category: "Development",
+    difficulty: "Beginner",
+    targetDate: "",
+    description: "",
+    paused: false,
+  };
+
+
+  const [form, setForm] =
+    useState(emptyForm);
+
+
+  const skills =
+    data.skills || [];
+
+
+  /* =========================
+     STATS
+  ========================= */
+
+  const stats =
+    useMemo(() => {
+
+      const total =
+        skills.length;
+
+      const active =
+        skills.filter(
+          (skill) =>
+            skill.status ===
+            "Learning"
+        ).length;
+
+      const completed =
+        skills.filter(
+          (skill) =>
+            skill.status ===
+            "Completed"
+        ).length;
+
+      const average =
+        total === 0
+          ? 0
+          : Math.round(
+              skills.reduce(
+                (sum, skill) =>
+                  sum +
+                  skill.progress,
+                0
+              ) / total
+            );
+
+      return {
+        total,
+        active,
+        completed,
+        average,
       };
-      setSkills([...skills, newSkill]);
-    } else {
-      // Update existing skill
-      const updated = skills.map((skill) => {
-        if (skill.id === editId) {
-          return {
-            ...skill,
-            name: skillName,
-            category,
-            difficulty,
-            progress: Number(progress),
-            targetDate,
-            description,
-            status,
-          };
-        }
-        return skill;
-      });
-      setSkills(updated);
-    }
 
-    clearForm();
-  }
+    }, [skills]);
 
-  // Populate form with existing skill data for editing
-  function editSkill(skill) {
-    setSkillName(skill.name);
-    setCategory(skill.category);
-    setDifficulty(skill.difficulty);
-    setProgress(skill.progress);
-    setTargetDate(skill.targetDate);
-    setDescription(skill.description);
-    setStatus(skill.status);
-    setEditId(skill.id);
-    setShowForm(true);
-  }
 
-  // Delete skill by ID
-  function deleteSkill(id) {
-    const updated = skills.filter((skill) => skill.id !== id);
-    setSkills(updated);
-  }
+  /* =========================
+     CURRENT FOCUS
+  ========================= */
 
-  // Filter skills by selected status and sort them
-  const visibleSkills = skills
-    .filter((skill) => {
-      if (filter === "All") return true;
-      return skill.status === filter;
-    })
-    .sort((a, b) => {
+  const currentFocus =
+    skills
+      .filter(
+        (skill) =>
+          skill.status ===
+          "Learning"
+      )
+      .sort(
+        (a, b) =>
+          b.progress -
+          a.progress
+      )[0];
+
+
+  /* =========================
+     FILTER + SORT
+  ========================= */
+
+  const filteredSkills =
+    useMemo(() => {
+
+      let result =
+        [...skills];
+
+      if (filter !== "All") {
+
+        result =
+          result.filter(
+            (skill) =>
+              skill.status ===
+              filter
+          );
+
+      }
+
       if (sortBy === "Progress") {
-        return b.progress - a.progress;
+
+        result.sort(
+          (a, b) =>
+            b.progress -
+            a.progress
+        );
+
       }
+
       if (sortBy === "Name") {
-        return a.name.localeCompare(b.name);
+
+        result.sort(
+          (a, b) =>
+            a.name.localeCompare(
+              b.name
+            )
+        );
+
       }
-      return 0;
+
+      return result;
+
+    }, [
+      skills,
+      filter,
+      sortBy,
+    ]);
+
+
+  /* =========================
+     ADD FORM
+  ========================= */
+
+  function openAddForm() {
+
+    setEditId(null);
+    setForm(emptyForm);
+    setShowForm(true);
+
+  }
+
+
+  /* =========================
+     EDIT FORM
+  ========================= */
+
+  function openEditForm(skill) {
+
+    setEditId(skill.id);
+
+    setForm({
+
+      name: skill.name,
+
+      category:
+        skill.category,
+
+      difficulty:
+        skill.difficulty,
+
+      targetDate:
+        skill.targetDate ||
+        "",
+
+      description:
+        skill.description ||
+        "",
+
+      paused:
+        skill.paused,
+
     });
 
+    setShowForm(true);
+
+  }
+
+
+  /* =========================
+     SAVE FORM
+  ========================= */
+
+  function handleSubmit(e) {
+
+    e.preventDefault();
+
+    if (!form.name.trim()) {
+      return;
+    }
+
+
+    /* EDIT */
+
+    if (editId) {
+
+      const updated =
+        skills.map(
+          (skill) => {
+
+            if (
+              skill.id !==
+              editId
+            ) {
+              return skill;
+            }
+
+            return normalizeSkill({
+
+              ...skill,
+
+              name:
+                form.name.trim(),
+
+              category:
+                form.category,
+
+              difficulty:
+                form.difficulty,
+
+              targetDate:
+                form.targetDate,
+
+              description:
+                form.description,
+
+              paused:
+                form.paused,
+
+            });
+
+          }
+        );
+
+      update({
+        skills: updated,
+      });
+
+    }
+
+
+    /* ADD */
+
+    else {
+
+      const newSkill =
+        normalizeSkill({
+
+          id: Date.now(),
+
+          name:
+            form.name.trim(),
+
+          category:
+            form.category,
+
+          difficulty:
+            form.difficulty,
+
+          targetDate:
+            form.targetDate,
+
+          description:
+            form.description,
+
+          paused: false,
+
+          tasks:
+            createTasks(
+              form.name.trim()
+            ),
+
+        });
+
+
+      update({
+
+        skills: [
+          ...skills,
+          newSkill,
+        ],
+
+      });
+
+    }
+
+
+    setForm(emptyForm);
+    setEditId(null);
+    setShowForm(false);
+
+  }
+
+
+  /* =========================
+     DELETE
+  ========================= */
+
+  function handleDelete(id) {
+
+    if (
+      window.confirm(
+        "Delete this skill?"
+      )
+    ) {
+
+      deleteSkill(id);
+
+    }
+
+  }
+
+
+  /* =========================
+     CONTINUE
+  ========================= */
+
+  function continueLearning(id) {
+
+    const element =
+      document.getElementById(
+        `skill-${id}`
+      );
+
+    if (element) {
+
+      element.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+
+    }
+
+  }
+
+
   return (
-    <div>
-      {/* Page Heading */}
-      <div className="page-head row-between">
+
+    <div className="skills-page">
+
+
+      {/* =====================
+          PAGE HEADER
+      ===================== */}
+
+      <div className="page-head skills-header">
+
         <div>
-          <h1>My Skills</h1>
-          <p className="muted">
-            Everything you're learning, with live progress.
+
+          <h1>
+            My Skills
+          </h1>
+
+          <p>
+            Track your learning journey, build your skills, and achieve your goals.
           </p>
+
         </div>
+
+
         <button
           className="btn btn-primary"
-          onClick={() => {
-            clearForm();
-            setShowForm(!showForm);
-          }}
+          onClick={openAddForm}
         >
-          + Add Skill
+
+          <Plus size={18} />
+
+          Add Skill
+
         </button>
+
       </div>
 
-      {/* Add / Edit Form */}
-      {showForm && (
-        <form className="card mt" onSubmit={submit}>
-          <h2>{editId === null ? "Add a new skill" : "Edit skill"}</h2>
 
-          <div className="form-grid mt">
-            <label className="field">
-              Skill name
-              <input
-                value={skillName}
-                onChange={(e) => setSkillName(e.target.value)}
-                required
-              />
-            </label>
+      {/* =====================
+          STAT CARDS
+      ===================== */}
 
-            <label className="field">
-              Category
-              <input
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-              />
-            </label>
+      <div className="grid grid-4 skills-stats">
 
-            <label className="field">
-              Difficulty
-              <select
-                value={difficulty}
-                onChange={(e) => setDifficulty(e.target.value)}
-              >
-                <option>Beginner</option>
-                <option>Intermediate</option>
-                <option>Advanced</option>
-              </select>
-            </label>
+        <div className="stat-card">
 
-            <label className="field">
-              Status
-              <select
-                value={status}
-                onChange={(e) => setStatus(e.target.value)}
-              >
-                <option>Learning</option>
-                <option>Paused</option>
-                <option>Completed</option>
-              </select>
-            </label>
-
-            <label className="field">
-              Progress (%)
-              <input
-                type="number"
-                min="0"
-                max="100"
-                value={progress}
-                onChange={(e) => setProgress(e.target.value)}
-              />
-            </label>
-
-            <label className="field">
-              Target date
-              <input
-                type="date"
-                value={targetDate}
-                onChange={(e) => setTargetDate(e.target.value)}
-              />
-            </label>
-
-            <label className="field">
-              Description
-              <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                rows="2"
-              />
-            </label>
+          <div className="stat-icon">
+            <BookOpen size={20} />
           </div>
 
-          <div className="card-actions">
-            <button className="btn btn-primary" type="submit">
-              {editId === null ? "Add Skill" : "Save Skill"}
-            </button>
+          <div>
+            <div className="stat-label">
+              Skills Tracked
+            </div>
+
+            <div className="stat-value">
+              {stats.total}
+            </div>
+          </div>
+
+        </div>
+
+
+        <div className="stat-card">
+
+          <div className="stat-icon">
+            <TrendingUp size={20} />
+          </div>
+
+          <div>
+            <div className="stat-label">
+              Active Learning
+            </div>
+
+            <div className="stat-value">
+              {stats.active}
+            </div>
+          </div>
+
+        </div>
+
+
+        <div className="stat-card">
+
+          <div className="stat-icon">
+            <CheckCircle size={20} />
+          </div>
+
+          <div>
+            <div className="stat-label">
+              Completed
+            </div>
+
+            <div className="stat-value">
+              {stats.completed}
+            </div>
+          </div>
+
+        </div>
+
+
+        <div className="stat-card">
+
+          <div className="stat-icon">
+            <Target size={20} />
+          </div>
+
+          <div>
+            <div className="stat-label">
+              Average Progress
+            </div>
+
+            <div className="stat-value">
+              {stats.average}%
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+
+      {/* =====================
+          FOCUS + JOURNEY
+      ===================== */}
+
+      <div className="skills-overview">
+
+
+        {/* CURRENT FOCUS */}
+
+        {currentFocus && (
+
+          <div className="card focus-card">
+
+            <div className="section-eyebrow">
+              CURRENT FOCUS
+            </div>
+
+            <div className="focus-title-row">
+
+              <div>
+
+                <h2>
+                  {currentFocus.name}
+                </h2>
+
+                <p>
+                  You're currently at{" "}
+                  <strong>
+                    {currentFocus.progress}%
+                  </strong>
+                </p>
+
+              </div>
+
+              <div className="focus-percentage">
+                {currentFocus.progress}%
+              </div>
+
+            </div>
+
+
+            <div className="progress-bar">
+
+              <div
+                className="progress"
+                style={{
+                  width:
+                    `${currentFocus.progress}%`,
+                }}
+              />
+
+            </div>
+
+
             <button
-              className="btn btn-light"
-              type="button"
-              onClick={() => setShowForm(false)}
+              className="btn btn-primary focus-button"
+              onClick={() =>
+                continueLearning(
+                  currentFocus.id
+                )
+              }
             >
-              Cancel
+              Continue Learning
             </button>
+
           </div>
-        </form>
+
+        )}
+
+
+
+      </div>
+
+
+      {/* =====================
+          ADD / EDIT FORM
+      ===================== */}
+
+      {showForm && (
+
+        <div className="card mt skills-form-card">
+
+          <h2>
+            {editId
+              ? "Edit Skill"
+              : "Add New Skill"}
+          </h2>
+
+          <p>
+            Progress is automatically
+            calculated from completed
+            tasks.
+          </p>
+
+
+          <form
+            onSubmit={handleSubmit}
+          >
+
+            <div className="form-grid">
+
+              <div className="field">
+
+                <label>
+                  Skill Name
+                </label>
+
+                <input
+                  value={form.name}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      name:
+                        e.target.value,
+                    })
+                  }
+                  placeholder="e.g. React"
+                  required
+                />
+
+              </div>
+
+
+              <div className="field">
+
+                <label>
+                  Category
+                </label>
+
+                <select
+                  value={form.category}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      category:
+                        e.target.value,
+                    })
+                  }
+                >
+
+                  <option>
+                    Development
+                  </option>
+
+                  <option>
+                    Programming
+                  </option>
+
+                  <option>
+                    AI / ML
+                  </option>
+
+                  <option>
+                    Database
+                  </option>
+
+                  <option>
+                    Cloud
+                  </option>
+
+                  <option>
+                    Data
+                  </option>
+
+                  <option>
+                    Other
+                  </option>
+
+                </select>
+
+              </div>
+
+
+              <div className="field">
+
+                <label>
+                  Difficulty
+                </label>
+
+                <select
+                  value={form.difficulty}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      difficulty:
+                        e.target.value,
+                    })
+                  }
+                >
+
+                  <option>
+                    Beginner
+                  </option>
+
+                  <option>
+                    Intermediate
+                  </option>
+
+                  <option>
+                    Advanced
+                  </option>
+
+                </select>
+
+              </div>
+
+
+              <div className="field">
+
+                <label>
+                  Target Date
+                </label>
+
+                <input
+                  type="date"
+                  value={form.targetDate}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      targetDate:
+                        e.target.value,
+                    })
+                  }
+                />
+
+              </div>
+
+            </div>
+
+
+            <div className="field">
+
+              <label>
+                Description
+              </label>
+
+              <textarea
+                value={form.description}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    description:
+                      e.target.value,
+                  })
+                }
+                rows="3"
+                placeholder="What do you want to learn?"
+              />
+
+            </div>
+
+
+            {editId && (
+
+              <label>
+
+                <input
+                  type="checkbox"
+                  checked={form.paused}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      paused:
+                        e.target.checked,
+                    })
+                  }
+                />
+
+                {" "}
+                Pause this skill
+
+              </label>
+
+            )}
+
+
+            <div className="form-actions">
+
+              <button
+                type="button"
+                className="btn btn-light"
+                onClick={() => {
+
+                  setShowForm(false);
+                  setEditId(null);
+
+                }}
+              >
+                Cancel
+              </button>
+
+
+              <button
+                type="submit"
+                className="btn btn-primary"
+              >
+
+                {editId
+                  ? "Save Changes"
+                  : "Add Skill"}
+
+              </button>
+
+            </div>
+
+          </form>
+
+        </div>
+
       )}
 
-      {/* Filter and Sort Toolbar */}
-      <div className="toolbar mt">
-        {["All", "Learning", "Paused", "Completed"].map((statusOption) => (
-          <button
-            key={statusOption}
-            className={
-              filter === statusOption ? "btn btn-primary" : "btn btn-light"
+
+      {/* =====================
+          FILTER + SORT
+      ===================== */}
+
+      <div className="toolbar mt skills-toolbar">
+
+        <div className="filter-buttons">
+
+          {[
+            "All",
+            "Learning",
+            "Not Started",
+            "Paused",
+            "Completed",
+          ].map((item) => (
+
+            <button
+              key={item}
+              className={
+                filter === item
+                  ? "btn btn-primary"
+                  : "btn btn-light"
+              }
+              onClick={() =>
+                setFilter(item)
+              }
+            >
+              {item}
+            </button>
+
+          ))}
+
+        </div>
+
+
+        <div className="sort-control">
+
+          <span>
+            Sort by
+          </span>
+
+          <select
+            value={sortBy}
+            onChange={(e) =>
+              setSortBy(
+                e.target.value
+              )
             }
-            onClick={() => setFilter(statusOption)}
           >
-            {statusOption}
-          </button>
-        ))}
 
-        <span className="muted small">Sort by:</span>
+            <option>
+              Progress
+            </option>
 
-        <select
-          className="btn"
-          value={sortBy}
-          onChange={(e) => setSortBy(e.target.value)}
-        >
-          <option>Progress</option>
-          <option>Name</option>
-        </select>
+            <option>
+              Name
+            </option>
+
+          </select>
+
+        </div>
+
       </div>
 
-      {/* Skills Grid */}
-      <div className="grid grid-3">
-        {visibleSkills.map((skill) => (
-          <SkillCard
-            key={skill.id}
-            skill={skill}
-            onEdit={editSkill}
-            onDelete={deleteSkill}
-          />
-        ))}
+
+      {/* =====================
+          SKILL CARDS
+      ===================== */}
+
+      <div className="grid grid-3 mt skills-grid">
+
+        {filteredSkills.length === 0 ? (
+
+          <div className="card">
+
+            <h3>
+              No skills found
+            </h3>
+
+            <p>
+              Add a skill or
+              change your filter.
+            </p>
+
+          </div>
+
+        ) : (
+
+          filteredSkills.map(
+            (skill) => (
+
+              <div
+                key={skill.id}
+                id={`skill-${skill.id}`}
+                className="skill-grid-item"
+              >
+
+                <SkillCard
+                  skill={skill}
+                  onEdit={openEditForm}
+                  onDelete={handleDelete}
+                  onToggleTask={toggleTask}
+                  onTogglePause={togglePause}
+                />
+
+              </div>
+
+            )
+          )
+
+        )}
+
       </div>
+
+
+      {/* =====================
+          COURSE API
+      ===================== */}
+
+      <div className="skills-courses">
+
+        <CourseRecommendations
+          skills={skills}
+        />
+
+      </div>
+
+
     </div>
-  );
-}
 
-export default Skills;
+  );
+
+}
